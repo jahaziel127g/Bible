@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Bible Heads Up Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -10,57 +10,192 @@
 
   <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full text-center">
     <h1 class="text-2xl font-bold mb-4">📖 Bible Heads Up Game</h1>
-    <p class="mb-2 text-gray-600">Guess the word based on clues from your friends!</p>
+    <p class="text-gray-600 mb-4">Guess the word before time runs out!</p>
 
-    <div id="word" class="text-3xl font-bold text-blue-600 py-6 h-24 flex items-center justify-center">
-      Click "Next" to begin
+    <div class="mb-4">
+      <label class="block text-gray-700 font-semibold mb-1">Select Difficulty:</label>
+      <select id="category" class="w-full px-3 py-2 border rounded">
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
     </div>
 
-    <button onclick="showWord()" class="mt-4 px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
-      ▶️ Next
+    <div id="word" class="text-3xl font-bold text-blue-600 py-4 h-20 flex items-center justify-center">
+      Click “Start”
+    </div>
+    <div id="hint" class="text-sm text-gray-500 h-8 mt-1"></div>
+    <div id="timer" class="text-lg font-bold text-red-600 mt-2"></div>
+
+    <button onclick="startGame()" class="mt-4 px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+      ▶️ Start
     </button>
 
     <div class="mt-6 text-sm text-gray-500">
-      Total words: <span id="totalWords">0</span> | Remaining: <span id="remaining">0</span>
+      Total: <span id="totalWords">0</span> | Left: <span id="remaining">0</span>
     </div>
   </div>
 
   <script>
-    const words = [
-      // Easy
-      "Adam", "Eve", "Noah", "Ark", "Jesus", "Cross", "Angel", "Moses", "Ten Commandments", "David",
-      "Goliath", "Fish", "Jonah", "Bible", "Church",
-
-      // Medium
-      "Mount Sinai", "Pharaoh", "Red Sea", "Manna", "Peter", "Disciples", "Miracle", "Paul",
-      "The Last Supper", "Bethlehem", "Resurrection", "Temptation", "Burning Bush", "Tomb", "Loaves and Fishes",
-
-      // Hard
-      "Melchizedek", "Tabernacle", "Pentecost", "Epistle", "Leviathan", "Mount of Olives", "Revelation", "Pharisee",
-      "Abraham’s Covenant", "Garden of Gethsemane", "The Beatitudes", "The Book of Judges",
-      "Elijah and the Chariot", "Tower of Babel", "The Armor of God"
-    ];
-
-    let remainingWords = [...words];
-
-    function showWord() {
-      if (remainingWords.length === 0) {
-        document.getElementById("word").innerText = "🎉 You've finished all the words!";
-        return;
-      }
-
-      const randomIndex = Math.floor(Math.random() * remainingWords.length);
-      const word = remainingWords.splice(randomIndex, 1)[0];
-
-      document.getElementById("word").innerText = word;
-      document.getElementById("totalWords").innerText = words.length;
-      document.getElementById("remaining").innerText = remainingWords.length;
+    // ––– Preload & prime speech synthesis –––
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+    function speak(text, opts = {}) {
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang   = 'en-US';
+      msg.rate   = opts.rate   ?? 1.0;
+      msg.pitch  = opts.pitch  ?? 1.0;
+      msg.volume = opts.volume ?? 1.0;
+      window.speechSynthesis.speak(msg);
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("totalWords").innerText = words.length;
-      document.getElementById("remaining").innerText = remainingWords.length;
-    });
+    // ––– Setup speech recognition for “next” command –––
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    if (SpeechRec) {
+      recognition = new SpeechRec();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = e => {
+        const spoken = e.results[0][0].transcript.trim().toLowerCase();
+        if (spoken.includes('next')) {
+          recognition.stop();
+          document.getElementById('hint').innerText = '';
+          nextWord();
+        } else {
+          recognition.stop();
+          recognition.start();
+        }
+      };
+
+      recognition.onend = () => {
+        // if still waiting for “next”, keep listening
+        if (document.getElementById('hint').innerText.includes('Say “next”')) {
+          recognition.start();
+        }
+      };
+
+      recognition.onerror = () => {
+        // silently ignore errors and retry
+        if (document.getElementById('hint').innerText.includes('Say “next”')) {
+          recognition.start();
+        }
+      };
+    }
+
+    const wordsByCategory = {
+      easy: [
+        { word: "Adam", hint: "First man" },
+        { word: "Eve", hint: "First woman" },
+        { word: "Noah", hint: "Built a boat" },
+        { word: "Ark", hint: "Big boat" },
+        { word: "Jesus", hint: "God’s Son" },
+        { word: "Cross", hint: "Jesus died on it" },
+        { word: "Angel", hint: "Messenger" },
+        { word: "Moses", hint: "Led people" },
+        { word: "Ten Commandments", hint: "Ten laws" },
+        { word: "David", hint: "Shepherd boy" },
+        { word: "Goliath", hint: "Giant" },
+        { word: "Fish", hint: "Swims" },
+        { word: "Jonah", hint: "Swallowed" },
+        { word: "Bible", hint: "Holy book" },
+        { word: "Church", hint: "Worship place" }
+      ],
+      medium: [
+        { word: "Mount Sinai", hint: "Mountain" },
+        { word: "Pharaoh", hint: "Egypt king" },
+        { word: "Red Sea", hint: "Parted water" },
+        { word: "Manna", hint: "Food" },
+        { word: "Peter", hint: "Disciple" },
+        { word: "Disciples", hint: "Followers" },
+        { word: "Miracle", hint: "Wonder" },
+        { word: "Paul", hint: "Letter writer" },
+        { word: "The Last Supper", hint: "Final meal" },
+        { word: "Bethlehem", hint: "Birthplace" },
+        { word: "Resurrection", hint: "Rising" },
+        { word: "Temptation", hint: "Testing" },
+        { word: "Burning Bush", hint: "Flames" },
+        { word: "Tomb", hint: "Grave" },
+        { word: "Loaves and Fishes", hint: "Food miracle" }
+      ],
+      hard: [
+        { word: "Melchizedek", hint: "Priest" },
+        { word: "Tabernacle", hint: "Tent" },
+        { word: "Pentecost", hint: "Spirit day" },
+        { word: "Epistle", hint: "Letter" },
+        { word: "Leviathan", hint: "Sea beast" },
+        { word: "Mount of Olives", hint: "Hill" },
+        { word: "Revelation", hint: "Last book" },
+        { word: "Pharisee", hint: "Strict leader" },
+        { word: "Abraham’s Covenant", hint: "Promise" },
+        { word: "Garden of Gethsemane", hint: "Prayer place" },
+        { word: "The Beatitudes", hint: "Blessings" },
+        { word: "The Book of Judges", hint: "Leaders" },
+        { word: "Elijah and the Chariot", hint: "Fire" },
+        { word: "Tower of Babel", hint: "Languages" },
+        { word: "The Armor of God", hint: "Protection" }
+      ]
+    };
+
+    let currentWords = [];
+    let timerInterval, timeLeft = 30, currentItem;
+
+    function startGame() {
+      clearInterval(timerInterval);
+      speak("Let’s go!", { volume: 0.01 });  // primer
+      const cat = document.getElementById("category").value;
+      currentWords = [...wordsByCategory[cat]];
+      shuffle(currentWords);
+      document.getElementById("totalWords").innerText = currentWords.length;
+      nextWord();
+    }
+
+    function nextWord() {
+      clearInterval(timerInterval);
+      document.getElementById("hint").innerText = "";
+      if (!currentWords.length) {
+        document.getElementById("word").innerText = "🎉 All done!";
+        document.getElementById("timer").innerText = "";
+        return;
+      }
+      currentItem = currentWords.shift();
+      document.getElementById("word").innerText = currentItem.word;
+      document.getElementById("remaining").innerText = currentWords.length;
+      startTimer();
+    }
+
+    function startTimer() {
+      timeLeft = 30;
+      document.getElementById("timer").innerText = `⏱️ ${timeLeft}s`;
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timer").innerText = `⏱️ ${timeLeft}s`;
+
+        if (timeLeft === 10) {
+          document.getElementById("hint").innerText = `💡 Hint: ${currentItem.hint}`;
+          speak("Hint: " + currentItem.hint);
+        }
+        if (timeLeft <= 5 && timeLeft > 0) {
+          speak(timeLeft.toString());
+        }
+        if (timeLeft === 0) {
+          clearInterval(timerInterval);
+          speak("The answer is " + currentItem.word);
+          document.getElementById("hint").innerText = `Say “next” to continue`;
+          if (recognition) recognition.start();
+        }
+      }, 1000);
+    }
+
+    function shuffle(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+    }
   </script>
 
 </body>
