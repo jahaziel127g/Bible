@@ -6,51 +6,106 @@
   <title>Bible Heads Up Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-blue-100 flex items-center justify-center min-h-screen">
+<body class="bg-gradient-to-br from-blue-100 to-indigo-200 flex items-center justify-center min-h-screen font-sans">
 
-  <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full text-center">
-    <h1 class="text-2xl font-bold mb-4">📖 Bible Heads Up Game</h1>
-    <p class="text-gray-600 mb-4">Guess the word before time runs out!</p>
+  <div class="bg-white rounded-xl shadow-xl p-8 max-w-md w-full space-y-4">
+    
+    <!-- Logo + Title -->
+    <div class="flex items-center gap-3 mb-4 border-b pb-4 border-indigo-300">
+      <div class="text-4xl">📖</div>
+      <div>
+        <h1 class="text-2xl font-bold text-indigo-700">Bible Heads Up</h1>
+        <p class="text-sm text-gray-500">Guess the word before time runs out!</p>
+      </div>
+    </div>
 
-    <div class="mb-4">
-      <label class="block text-gray-700 font-semibold mb-1">Select Difficulty:</label>
-      <select id="category" class="w-full px-3 py-2 border rounded">
-        <option value="easy">Easy</option>
-        <option value="medium">Medium</option>
-        <option value="hard">Hard</option>
+    <!-- Scoreboard -->
+    <div class="text-center text-indigo-600 font-medium">
+      Score: <span id="score">0</span> / <span id="attempted">0</span>
+    </div>
+
+    <!-- Difficulty Dropdown -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">🎯 Select Difficulty:</label>
+      <select id="category" class="w-full px-3 py-2 border rounded-md shadow-sm focus:ring focus:ring-indigo-300 focus:outline-none">
+        <option value="easy">🟢 Easy</option>
+        <option value="medium">🟠 Medium</option>
+        <option value="hard">🔴 Hard</option>
       </select>
     </div>
 
-    <div id="word" class="text-3xl font-bold text-blue-600 py-4 h-20 flex items-center justify-center">
+    <!-- Word Display -->
+    <div id="word" class="text-4xl font-extrabold text-blue-600 bg-blue-50 rounded-lg py-6 text-center shadow-inner h-24 flex items-center justify-center">
       Click “Start”
     </div>
-    <div id="hint" class="text-sm text-gray-500 h-8 mt-1"></div>
-    <div id="timer" class="text-lg font-bold text-red-600 mt-2"></div>
 
-    <button onclick="startGame()" class="mt-4 px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-      ▶️ Start
+    <!-- Hint and Timer -->
+    <div class="text-center space-y-1">
+      <div id="hint" class="text-sm text-gray-600 h-6"></div>
+      <div id="timer" class="text-lg font-bold text-red-600"></div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="grid grid-cols-3 gap-2">
+      <button id="correctBtn" onclick="markCorrect()" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg shadow">
+        ✅ Correct
+      </button>
+      <button id="wrongBtn" onclick="markWrong()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow">
+        ❌ Wrong
+      </button>
+      <button id="nextBtn" onclick="nextWord()" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg shadow">
+        ⏭️ Next
+      </button>
+    </div>
+
+    <!-- Start Button -->
+    <button onclick="startGame()" class="w-full mt-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white text-lg font-semibold rounded-lg shadow-md transition">
+      ▶️ Start Game
     </button>
 
-    <div class="mt-6 text-sm text-gray-500">
-      Total: <span id="totalWords">0</span> | Left: <span id="remaining">0</span>
+    <!-- Status -->
+    <div class="text-sm text-gray-500 text-center">
+      Total Words: <span id="totalWords">0</span> | Remaining: <span id="remaining">0</span>
     </div>
   </div>
 
+  <!-- Background Music -->
+  <audio id="bgMusic" loop>
+    <source src="https://cdn.pixabay.com/audio/2022/10/03/audio_8f946a21d8.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+
+  <!-- Music Control Button -->
+  <div class="fixed bottom-4 right-4 bg-white shadow-lg p-2 rounded-full">
+    <button onclick="toggleMusic()" class="text-indigo-600 hover:text-indigo-800 text-xl" title="Toggle Music">🎵</button>
+  </div>
+
   <script>
-    // ––– Preload & prime speech synthesis –––
-    window.speechSynthesis.onvoiceschanged = () => {
-      window.speechSynthesis.getVoices();
-    };
+    // —— Music & Score Setup ——
+    const bgMusic = document.getElementById("bgMusic");
+    let musicStarted = false;
+    function toggleMusic() {
+      bgMusic.paused ? bgMusic.play() : bgMusic.pause();
+    }
+
+    let score = 0, attempted = 0;
+    function updateScoreboard() {
+      document.getElementById("score").innerText = score;
+      document.getElementById("attempted").innerText = attempted;
+    }
+
+    // —— Speech Synthesis ——
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     function speak(text, opts = {}) {
       const msg = new SpeechSynthesisUtterance(text);
-      msg.lang   = 'en-US';
-      msg.rate   = opts.rate   ?? 1.0;
-      msg.pitch  = opts.pitch  ?? 1.0;
+      msg.lang = 'en-US';
+      msg.rate = opts.rate ?? 1.0;
+      msg.pitch = opts.pitch ?? 1.0;
       msg.volume = opts.volume ?? 1.0;
       window.speechSynthesis.speak(msg);
     }
 
-    // ––– Setup speech recognition for “next” command –––
+    // —— Voice “next” Command ——
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
     if (SpeechRec) {
@@ -58,7 +113,6 @@
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
-
       recognition.onresult = e => {
         const spoken = e.results[0][0].transcript.trim().toLowerCase();
         if (spoken.includes('next')) {
@@ -70,25 +124,21 @@
           recognition.start();
         }
       };
-
       recognition.onend = () => {
-        // if still waiting for “next”, keep listening
         if (document.getElementById('hint').innerText.includes('Say “next”')) {
           recognition.start();
         }
       };
-
       recognition.onerror = () => {
-        // silently ignore errors and retry
         if (document.getElementById('hint').innerText.includes('Say “next”')) {
           recognition.start();
         }
       };
     }
 
+    // —— Word Lists ——
     const wordsByCategory = {
-      easy: [
-        { word: "Adam", hint: "First man" },
+      easy: [ { word: "Adam", hint: "First man" },
         { word: "Eve", hint: "First woman" },
         { word: "Noah", hint: "Built a boat" },
         { word: "Ark", hint: "Big boat" },
@@ -103,9 +153,8 @@
         { word: "Jonah", hint: "Swallowed" },
         { word: "Bible", hint: "Holy book" },
         { word: "Church", hint: "Worship place" }
-      ],
-      medium: [
-        { word: "Mount Sinai", hint: "Mountain" },
+ ],
+      medium: [ { word: "Mount Sinai", hint: "Mountain" },
         { word: "Pharaoh", hint: "Egypt king" },
         { word: "Red Sea", hint: "Parted water" },
         { word: "Manna", hint: "Food" },
@@ -120,9 +169,8 @@
         { word: "Burning Bush", hint: "Flames" },
         { word: "Tomb", hint: "Grave" },
         { word: "Loaves and Fishes", hint: "Food miracle" }
-      ],
-      hard: [
-        { word: "Melchizedek", hint: "Priest" },
+ ],
+      hard: [ { word: "Melchizedek", hint: "Priest" },
         { word: "Tabernacle", hint: "Tent" },
         { word: "Pentecost", hint: "Spirit day" },
         { word: "Epistle", hint: "Letter" },
@@ -137,15 +185,18 @@
         { word: "Elijah and the Chariot", hint: "Fire" },
         { word: "Tower of Babel", hint: "Languages" },
         { word: "The Armor of God", hint: "Protection" }
-      ]
+]
     };
+    // (For brevity, keep the same lists you had before.)
 
-    let currentWords = [];
-    let timerInterval, timeLeft = 30, currentItem;
+    let currentWords = [], timerInterval, timeLeft = 30, currentItem;
 
+    // —— Game Flow ——
     function startGame() {
       clearInterval(timerInterval);
-      speak("Let’s go!", { volume: 0.01 });  // primer
+      if (!musicStarted) { bgMusic.play(); musicStarted = true; }
+      score = 0; attempted = 0; updateScoreboard();
+      speak("Let’s go!", { volume: 0.01 });
       const cat = document.getElementById("category").value;
       currentWords = [...wordsByCategory[cat]];
       shuffle(currentWords);
@@ -167,13 +218,26 @@
       startTimer();
     }
 
+    function markCorrect() {
+      clearInterval(timerInterval);
+      attempted++; score++;
+      updateScoreboard();
+      nextWord();
+    }
+
+    function markWrong() {
+      clearInterval(timerInterval);
+      attempted++;
+      updateScoreboard();
+      nextWord();
+    }
+
     function startTimer() {
       timeLeft = 30;
       document.getElementById("timer").innerText = `⏱️ ${timeLeft}s`;
       timerInterval = setInterval(() => {
         timeLeft--;
         document.getElementById("timer").innerText = `⏱️ ${timeLeft}s`;
-
         if (timeLeft === 10) {
           document.getElementById("hint").innerText = `💡 Hint: ${currentItem.hint}`;
           speak("Hint: " + currentItem.hint);
@@ -197,6 +261,5 @@
       }
     }
   </script>
-
 </body>
 </html>
