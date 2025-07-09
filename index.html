@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bible Heads Up Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-blue-100 flex items-center justify-center min-h-screen">
+
+  <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full text-center">
+    <h1 class="text-2xl font-bold mb-4">📖 Bible Heads Up Game</h1>
+    <p class="mb-2 text-gray-600">Guess the word based on clues from your friends!</p>
+
+    <div id="word" class="text-3xl font-bold text-blue-600 py-6 h-24 flex items-center justify-center">
+      Click "Next" to begin
+    </div>
+
+    <button onclick="showWord()" class="mt-4 px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+      ▶️ Next
+    </button>
+
+    <div class="mt-6 text-sm text-gray-500">
+      Total words: <span id="totalWords">0</span> | Remaining: <span id="remaining">0</span>
+    </div>
+  </div>
+
+  <script>
+    const words = [
+      // Easy
+      "Adam", "Eve", "Noah", "Ark", "Jesus", "Cross", "Angel", "Moses", "Ten Commandments", "David",
+      "Goliath", "Fish", "Jonah", "Bible", "Church",
+
+      // Medium
+      "Mount Sinai", "Pharaoh", "Red Sea", "Manna", "Peter", "Disciples", "Miracle", "Paul",
+      "The Last Supper", "Bethlehem", "Resurrection", "Temptation", "Burning Bush", "Tomb", "Loaves and Fishes",
+
+      // Hard
+      "Melchizedek", "Tabernacle", "Pentecost", "Epistle", "Leviathan", "Mount of Olives", "Revelation", "Pharisee",
+      "Abraham’s Covenant", "Garden of Gethsemane", "The Beatitudes", "The Book of Judges",
+      "Elijah and the Chariot", "Tower of Babel", "The Armor of God"
+    ];
+
+    let remainingWords = [...words];
+
+    function showWord() {
+      if (remainingWords.length === 0) {
+        document.getElementById("word").innerText = "🎉 You've finished all the words!";
+        return;
+      }
+
+      const randomIndex = Math.floor(Math.random() * remainingWords.length);
+      const word = remainingWords.splice(randomIndex, 1)[0];
+
+      document.getElementById("word").innerText = word;
+      document.getElementById("totalWords").innerText = words.length;
+      document.getElementById("remaining").innerText = remainingWords.length;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("totalWords").innerText = words.length;
+      document.getElementById("remaining").innerText = remainingWords.length;
+    });
+  </script>
+
+</body>
+</html>
