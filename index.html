@@ -245,12 +245,12 @@
     }
 
     function startTimer() {
-      timeLeft = 30;
+      timeLeft = 50;
       document.getElementById("timer").innerText = `⏱️ ${timeLeft}s`;
       timerInterval = setInterval(() => {
         timeLeft--;
         document.getElementById("timer").innerText = `⏱️ ${timeLeft}s`;
-        if (timeLeft === 10) {
+        if (timeLeft === 30) {
           document.getElementById("hint").innerText = `💡 Hint: ${currentItem.hint}`;
           speak("Hint: " + currentItem.hint);
         }
